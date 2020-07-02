@@ -1,17 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def MaxLikelyhoodEs(num_classes, prior, input, model):
+def MaxLikelyhoodEs(num_classes, prior, input, model="Gaussian"):
     """
 
     :param num_classes: the num of classes for classification task
     :param prior: a list of len(num_clases). prior probability of each classes
-    :param input: the dataset for classification. maybe a numpy array?
+    :param input: the dataset for classification. a num_classes length tuple: (inputa, inputb...)
     :param model: the model for classification
 
     :return: the maximum likelihood value of params of model with respect to the input dataset
     """
-    pass
+    assert len(input) == num_classes
+    if model == "Gaussian":
+
 
     return
 
@@ -32,3 +34,14 @@ def data_generator(meana, meanb, cova, covb, num_classa, num_classb):
     data = (classa, classb)
     return data
 
+if __name__ == '__main__':
+    mean_a = [-1,0]
+    mean_b = [1,0]
+    cova = [[1, 0.5], [0.5, 1]]
+    covb = [[1, -0.5], [-0.5, 1]]
+    num = 1000
+    classa, classb = data_generator(mean_a, mean_b, cova, covb, num, num)
+    fig, ax = plt.subplots()
+    ax.scatter(classa[:,0], classa[:,1])
+    ax.scatter(classb[:,0], classb[:,1])
+    fig.show()
