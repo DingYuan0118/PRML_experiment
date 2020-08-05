@@ -1,6 +1,6 @@
 from MyPackages.CIFAT10_Dataset import CIFAR10, Int2Tensor
 import os
-import torchvision
+from torchvision import datasets, models, transforms
 from torchvision import transforms
 import torch
 import matplotlib.pyplot as plt
@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 import torch.nn as nn
 from MyPackages.ConvNets import ForLayerConvNet
+import argparse
 
 def imshow(inp, title=None):
     """Imshow for Tensor."""
@@ -99,6 +100,12 @@ def train_model(model, criterion, optimizer, scheduler, writer, num_epochs=25):
 
 
 if __name__ == '__main__':
+    parse = argparse.ArgumentParser()
+    parse.add_argument('--type', choices=['four_layer_conv', 'Resnet', 'Resnet_finetune'], help="please input ['four_layer_conv', 'Resnet', 'Resnet—finetune']")
+    parse.add_argument('--bs', type=int, help='batch size for train and test')
+    parse.add_argument('--norm', action='store_true', help="use weight decay norm")
+    arg = parse.parse_args()
+
     root = os.environ['dataset']
     # reference = torchvision.datasets.CIFAR10(root)
     # print(reference)
@@ -113,22 +120,69 @@ if __name__ == '__main__':
     print(test_data)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # init the for layer convolution network with output 10 class
-    net = ForLayerConvNet(10)
-    net.to(device)
-    dataloaders = {"train": torch.utils.data.DataLoader(train_data, batch_size=4, shuffle=True, num_workers=0),
-                  "test": torch.utils.data.DataLoader(test_data, batch_size=4, shuffle=True, num_workers=0)}
+
+    dataloaders = {"train": torch.utils.data.DataLoader(train_data, batch_size=arg.bs, shuffle=True, num_workers=0),
+                  "test": torch.utils.data.DataLoader(test_data, batch_size=arg.bs, shuffle=True, num_workers=0)}
 
     class_names = train_data.classes
     class_to_idx = train_data.class_to_idx
-    inputs, classes = next(iter(dataloaders['train']))
+    # inputs, classes = next(iter(dataloaders['train']))
     # Make a grid from batch
     dataset_sizes = {'train': len(train_data), 'test': len(test_data)}
 
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    if arg.type == 'four_layer_conv':
+        net = ForLayerConvNet(10)
+        net.to(device)
+        if arg.norm:
+            optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-3)
+            writer = SummaryWriter('runs/for_layer_conv_norm')
+        else:
+            optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+            writer = SummaryWriter('runs/for_layer_conv')
 
-    writer = SummaryWriter('runs/for_layer_conv')
-    criterion = nn.CrossEntropyLoss()
-    train_model(net, optimizer=optimizer,criterion=criterion, scheduler=scheduler, writer=writer, num_epochs=10)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.9)
+        criterion = nn.CrossEntropyLoss()
+        train_model(net, optimizer=optimizer, criterion=criterion, scheduler=scheduler, writer=writer, num_epochs=500)
 
+    elif arg.type == 'Resnet':
+        Resnet = models.resnet18(pretrained=False)
+        num_ftrs = Resnet.fc.in_features
+        # Here the size of each output sample is set to 2.
+        # Alternatively, it can be generalized to nn.Linear(num_ftrs, len(class_names)).
+        Resnet.fc = nn.Linear(num_ftrs, 10)
+        Resnet = Resnet.to(device)
+        if arg.norm:
+            # Observe that all parameters are being optimized
+            optimizer = optim.SGD(Resnet.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-2)
+            writer = SummaryWriter('runs/Resnet_norm_0.01')
+        else:
+            optimizer = optim.SGD(Resnet.parameters(), lr=0.001, momentum=0.9)
+            writer = SummaryWriter('runs/Resnet')
+        criterion = nn.CrossEntropyLoss()
+
+        # Decay LR by a factor of 0.1 every 7 epochs
+        exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.9)
+        Resnet = train_model(Resnet, criterion, optimizer, exp_lr_scheduler, writer=writer,
+                               num_epochs=100)
+        torch.save(Resnet.state_dict(), "log/Resnet_18.pth")
+
+    elif arg.type == 'Resnet_finetune':
+        Resnet_ft = models.resnet18(pretrained=True)
+        num_ftrs = Resnet_ft.fc.in_features
+        # Here the size of each output sample is set to 2.
+        # Alternatively, it can be generalized to nn.Linear(num_ftrs, len(class_names)).
+        Resnet_ft.fc = nn.Linear(num_ftrs, 10)
+        Resnet_ft = Resnet_ft.to(device)
+        criterion = nn.CrossEntropyLoss()
+        # Observe that all parameters are being optimized
+        optimizer = optim.SGD(Resnet_ft.parameters(), lr=0.001, momentum=0.9)
+        # Decay LR by a factor of 0.1 every 7 epochs
+        exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+        writer = SummaryWriter('runs/Resnet_ft')
+        Resnet_ft = train_model(Resnet_ft, criterion, optimizer, exp_lr_scheduler, writer=writer,
+                               num_epochs=30)
+        torch.save(Resnet_ft.state_dict(), "log/Resnet_18_ft.pth")
+
+    else:
+        raise ValueError("--type must be ['four_layer_conv', 'Resnet', 'Resnet—finetune']")
 
