@@ -49,7 +49,7 @@ class Kmeans:
             loss = self.loss(self.clusters, self.centers)
             print("{} iters: loss: {}".format(iter+1, loss))
 
-            if loss <= min_loss:
+            if loss < min_loss:
                 min_loss = loss
             else:
                 print("{} iters stop".format(iter))
@@ -77,7 +77,7 @@ def loss(clusters, centers):
     return loss
 
 if __name__ == '__main__':
-    X = np.load('data/Gaussian/Gaussian_train.npz.npy')
+    X = np.load('./data/Gaussian_train.npy')
     print(X.shape)
     K_means = Kmeans(disMeature=disMeature, loss=loss)
     clusters, centers = K_means.fit(X, 2, 10)
