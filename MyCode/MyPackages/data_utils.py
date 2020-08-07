@@ -40,3 +40,20 @@ def load_CIFAR10(ROOT):
     del X, Y
     Xte, Yte = load_CIFAR_batch(os.path.join(ROOT, 'test_batch'))
     return Xtr, Ytr, Xte, Yte
+
+def data_generator(meana, meanb, cova, covb, num_classa, num_classb):
+    """
+
+    :param meana: the mean of Gaussian distribution of class a
+    :param meanb: the mean of Gaussian distribution of class b
+    :param cova: the covariance matrix of class a
+    :param covb: the covariance matrix of class b
+    :param num_classa: the number of data points of class a
+    :param num_classb: the number of data points of class b
+
+    :return: the data of class a and class b
+    """
+    classa = np.random.multivariate_normal(meana, cova, size=num_classa)
+    classb = np.random.multivariate_normal(meanb, covb, size=num_classb)
+    data = (classa, classb)
+    return data

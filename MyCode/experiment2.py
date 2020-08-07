@@ -1,5 +1,5 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class Kmeans:
     """
@@ -76,11 +76,20 @@ def loss(clusters, centers):
         loss += np.sum(np.power(np.array(dataset) - centers[index], 2))
     return loss
 
+def show_result(cluster):
+    plt.figure()
+    for index, dataset in clusters.items():
+        dataset = np.array(dataset)
+        plt.scatter(dataset[:, 0], dataset[:, 1], label="cluster{}".format(index))
+    plt.legend()
+    plt.show()
+
 if __name__ == '__main__':
-    X = np.load('./data/Gaussian_train.npy')
+    X = np.load('./data/Gaussian/Gaussian_train_4_classes.npy')
     print(X.shape)
     K_means = Kmeans(disMeature=disMeature, loss=loss)
-    clusters, centers = K_means.fit(X, 2, 10)
+    clusters, centers = K_means.fit(X, 3, 100)
+    show_result(clusters)
 
 
 
